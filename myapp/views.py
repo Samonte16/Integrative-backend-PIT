@@ -1,11 +1,10 @@
-# views.py
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 import json
 
-from .models import Profile  # if you use profile model
+from .models import Profile
 
 @csrf_exempt
 def signup_view(request):
