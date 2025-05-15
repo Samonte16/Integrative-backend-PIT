@@ -1,11 +1,10 @@
-from django.contrib.auth.models import User
-from django.contrib.auth import authenticate, login
-from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.hashers import make_password, check_password  # For hashing and checking passwords
+from .models import User
 import json
 
-from .models import Profile
-
+# Create User
 @csrf_exempt
 def signup_view(request):
     if request.method == 'POST':
@@ -18,33 +17,50 @@ def signup_view(request):
         email = data.get('email')
         password = data.get('password')
 
-        if User.objects.filter(username=email).exists():
-            return JsonResponse({'error': 'User already exists'}, status=400)
+        if not (full_name and gender and age and phone and email and password):
+            return JsonResponse({'error': 'Missing fields'}, status=400)
 
-        # Create user
-        user = User.objects.create_user(username=email, email=email, password=password)
-        user.first_name = full_name  # optionally split full name if needed
-        user.save()
+        if User.objects.filter(email=email).exists():
+            return JsonResponse({'error': 'Email already exists'}, status=400)
 
-        # Create profile if you use extra fields
-        Profile.objects.create(user=user, gender=gender, age=age, phone=phone)
+        # Hash the password before saving it
+        hashed_password = make_password(password)
 
-        return JsonResponse({'message': 'User created successfully'})
+        user = User.objects.create(
+            full_name=full_name,
+            gender=gender,
+            age=age,
+            phone=phone,
+            email=email,
+            password=hashed_password  # Store the hashed password
+        )
 
-    return JsonResponse({'error': 'Invalid method'}, status=405)
+        return JsonResponse({'message': 'User created successfully'}, status=201)
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=400)
 
+
+# Login User
 @csrf_exempt
 def signin_view(request):
     if request.method == 'POST':
         data = json.loads(request.body)
+
         email = data.get('email')
         password = data.get('password')
 
-        user = authenticate(username=email, password=password)
-        if user is not None:
-            login(request, user)  # optional if using sessions
-            return JsonResponse({'message': 'Login successful'})
-        else:
-            return JsonResponse({'error': 'Invalid credentials'}, status=401)
+        if not (email and password):
+            return JsonResponse({'error': 'Missing email or password'}, status=400)
 
-    return JsonResponse({'error': 'Invalid method'}, status=405)
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return JsonResponse({'error': 'User does not exist'}, status=400)
+
+        # Check the password
+        if check_password(password, user.password):
+            return JsonResponse({'message': 'Login successful'}, status=200)
+        else:
+            return JsonResponse({'error': 'Invalid password'}, status=400)
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=400)
