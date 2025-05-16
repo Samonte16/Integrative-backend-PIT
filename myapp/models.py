@@ -1,4 +1,5 @@
 from django.db import models
+import uuid
 
 class User(models.Model):
     full_name = models.CharField(max_length=200)
@@ -7,6 +8,8 @@ class User(models.Model):
     phone = models.CharField(max_length=20)
     email = models.EmailField(unique=True)
     password = models.CharField(max_length=100)  # ideally hashed — not plain text
+    is_active = models.BooleanField(default=False)  # Email verification pending
+    verification_token = models.UUIDField(default=uuid.uuid4)  # Unique token
 
     def __str__(self):
         return f"{self.full_name} ({self.email})"

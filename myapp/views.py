@@ -1,6 +1,9 @@
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.hashers import make_password, check_password  # For hashing and checking passwords
+from django.core.mail import send_mail
+from django.urls import reverse
+from django.conf import settings
 from .models import User
 import json
 
@@ -35,9 +38,30 @@ def signup_view(request):
             password=hashed_password  # Store the hashed password
         )
 
-        return JsonResponse({'message': 'User created successfully'}, status=201)
+        # Send verification email
+        verification_link = f"http://127.0.0.1:8000/api/verify-email/{user.verification_token}/"
+        send_mail(
+            'Verify your Email',
+            f'Hello {full_name}, please verify your email by clicking this link: {verification_link}',
+            settings.EMAIL_HOST_USER,
+            [email],
+            fail_silently=False,
+        )
+
+        return JsonResponse({'message': 'User created successfully. Please check your email to verify your account.'}, status=201)
     else:
         return JsonResponse({'error': 'Invalid request method'}, status=400)
+    
+def verify_email(request, token):
+    try:
+        user = User.objects.get(verification_token=token)
+        if user.is_active:
+            return JsonResponse({'message': 'Account already verified.'}, status=200)
+        user.is_active = True
+        user.save()
+        return JsonResponse({'message': 'Email verified successfully! You can now log in.'}, status=200)
+    except User.DoesNotExist:
+        return JsonResponse({'error': 'Invalid or expired token.'}, status=400)
 
 
 # Login User
@@ -57,6 +81,10 @@ def signin_view(request):
         except User.DoesNotExist:
             return JsonResponse({'error': 'User does not exist'}, status=400)
 
+        # Check if account is verified
+        if not user.is_active:
+            return JsonResponse({'error': 'Account not verified. Please check your email.'}, status=403)
+
         # Check the password
         if check_password(password, user.password):
             return JsonResponse({'message': 'Login successful'}, status=200)
@@ -64,3 +92,6 @@ def signin_view(request):
             return JsonResponse({'error': 'Invalid password'}, status=400)
     else:
         return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+    
+

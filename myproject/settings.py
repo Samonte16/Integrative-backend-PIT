@@ -126,3 +126,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOW_ALL_ORIGINS = True  # for development only
 # Or more secure: CORS_ALLOWED_ORIGINS = ['http://localhost:3000']
+
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'carlossamonte1@gmail.com'
+EMAIL_HOST_PASSWORD = 'zxar psul rhwy jypm'
