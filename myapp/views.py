@@ -37,7 +37,7 @@ def signup_view(request):
         )
 
         # Prepare verification link
-        verification_link = f"http://192.168.1.44:8000/api/verify-email/{user.verification_token}/"
+        verification_link = f"http://192.168.1.59:8000/api/verify-email/{user.verification_token}/"
 
         # Render HTML template
         html_content = render_to_string('emails/verify_email.html', {
