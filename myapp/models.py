@@ -9,7 +9,7 @@ class User(models.Model):
     email = models.EmailField(unique=True)
     password = models.CharField(max_length=100)  # ideally hashed — not plain text
     is_active = models.BooleanField(default=False)  # Email verification pending
-    verification_token = models.UUIDField(default=uuid.uuid4)  # Unique token
+    verification_token = models.UUIDField(default=uuid.uuid4, editable=False)
 
     def __str__(self):
         return f"{self.full_name} ({self.email})"

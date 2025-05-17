@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-l%7=vew73dn9zbbb@k=&3ag=(_8tb7l*3v^_7m3@fy(&mpqf=2
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '192.168.1.44']
 
 
 # Application definition
@@ -127,9 +127,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOW_ALL_ORIGINS = True  # for development only
 # Or more secure: CORS_ALLOWED_ORIGINS = ['http://localhost:3000']
 
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
 EMAIL_USE_TLS = True
+EMAIL_PORT = 587
 EMAIL_HOST_USER = 'carlossamonte1@gmail.com'
-EMAIL_HOST_PASSWORD = 'zxar psul rhwy jypm'
+EMAIL_HOST_PASSWORD = 'qigg jmzv kmsu ouqs'
+
+
+
