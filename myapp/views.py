@@ -7,6 +7,21 @@ from django.conf import settings
 from .models import User, Admin
 import json
 
+# 📧 Reusable email sending function
+def send_verification_email(recipient_email, full_name, verification_link, is_admin=False):
+    subject = 'Verify Your Admin Account' if is_admin else 'Verify Your Email Address'
+    template = 'emails/admin_verify_email.html' if is_admin else 'emails/verify_email.html'
+
+    html_content = render_to_string(template, {
+        'full_name': full_name,
+        'verification_link': verification_link
+    })
+
+    email_from = settings.EMAIL_HOST_USER
+    email_msg = EmailMultiAlternatives(subject, '', email_from, [recipient_email])
+    email_msg.attach_alternative(html_content, "text/html")
+    email_msg.send()
+
 @csrf_exempt
 def signup_view(request):
     if request.method == 'POST':
@@ -36,26 +51,12 @@ def signup_view(request):
             password=hashed_password
         )
 
-        # Prepare verification link
         verification_link = f"http://192.168.1.59:8000/api/verify-email/{user.verification_token}/"
-
-        # Render HTML template
-        html_content = render_to_string('emails/verify_email.html', {
-            'full_name': full_name,
-            'verification_link': verification_link
-        })
-
-        # Send email
-        email_subject = 'Verify Your Email Address'
-        email_from = settings.EMAIL_HOST_USER
-        email_msg = EmailMultiAlternatives(email_subject, '', email_from, [email])
-        email_msg.attach_alternative(html_content, "text/html")
-        email_msg.send()
+        send_verification_email(email, full_name, verification_link)
 
         return JsonResponse({'message': 'User created successfully. Please check your email to verify your account.'}, status=201)
     else:
         return JsonResponse({'error': 'Invalid request method'}, status=400)
-
 
 def verify_email(request, token):
     try:
@@ -67,7 +68,6 @@ def verify_email(request, token):
         return JsonResponse({'message': 'Email verified successfully! You can now log in.'}, status=200)
     except User.DoesNotExist:
         return JsonResponse({'error': 'Invalid or expired token.'}, status=400)
-
 
 @csrf_exempt
 def signin_view(request):
@@ -94,8 +94,7 @@ def signin_view(request):
             return JsonResponse({'error': 'Invalid password'}, status=400)
     else:
         return JsonResponse({'error': 'Invalid request method'}, status=400)
-    
-    
+
 @csrf_exempt
 def admin_register_view(request):
     if request.method == 'POST':
@@ -115,7 +114,7 @@ def admin_register_view(request):
 
         hashed_password = make_password(password)
 
-        Admin.objects.create(
+        admin = Admin.objects.create(
             full_name=full_name,
             gender=gender,
             age=age,
@@ -123,10 +122,23 @@ def admin_register_view(request):
             password=hashed_password
         )
 
-        return JsonResponse({'message': 'Admin registered successfully.'}, status=201)
+        verification_link = f"http://192.168.1.59:8000/api/admin-verify-email/{admin.verification_token}/"
+        send_verification_email(email, full_name, verification_link, is_admin=True)
+
+        return JsonResponse({'message': 'Admin registered successfully. Please check your email to verify your account.'}, status=201)
     else:
         return JsonResponse({'error': 'Invalid request method'}, status=400)
 
+def admin_verify_email(request, token):
+    try:
+        admin = Admin.objects.get(verification_token=token)
+        if admin.is_active:
+            return JsonResponse({'message': 'Admin account already verified.'}, status=200)
+        admin.is_active = True
+        admin.save()
+        return JsonResponse({'message': 'Admin email verified successfully! You can now log in.'}, status=200)
+    except Admin.DoesNotExist:
+        return JsonResponse({'error': 'Invalid or expired token.'}, status=400)
 
 @csrf_exempt
 def admin_login_view(request):
@@ -151,9 +163,41 @@ def admin_login_view(request):
     else:
         return JsonResponse({'error': 'Invalid request method'}, status=400)
 
-
-# Fetch verified users for Admin Dashboard
 def verified_users_view(request):
     verified_users = User.objects.filter(is_active=True).values('full_name', 'email', 'age', 'gender', 'phone')
     return JsonResponse({'verified_users': list(verified_users)}, safe=False)
 
+@csrf_exempt
+def forgot_password_view(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        email = data.get('email')
+        old_password = data.get('old_password')
+        new_password = data.get('new_password')
+
+        if not (email and old_password and new_password):
+            return JsonResponse({'error': 'Missing fields'}, status=400)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return JsonResponse({'error': 'User not found'}, status=404)
+
+        if not check_password(old_password, user.password):
+            return JsonResponse({'error': 'Old password is incorrect'}, status=400)
+
+        user.password = make_password(new_password)
+        user.save()
+
+        email_subject = 'Your Password Has Been Changed'
+        email_from = settings.EMAIL_HOST_USER
+        html_content = render_to_string('emails/password_changed.html', {
+            'full_name': user.full_name,
+        })
+        email_msg = EmailMultiAlternatives(email_subject, '', email_from, [email])
+        email_msg.attach_alternative(html_content, "text/html")
+        email_msg.send()
+
+        return JsonResponse({'message': 'Password changed successfully.'}, status=200)
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=400)
